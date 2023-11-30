@@ -1,4 +1,4 @@
-/* PptxGenJS 3.13.0-beta.1 @ 2023-11-30T12:15:37.816Z */
+/* PptxGenJS 3.13.0-beta.1 @ 2023-11-30T13:08:37.972Z */
 'use strict';
 
 var JSZip = require('jszip');
@@ -1381,15 +1381,15 @@ function getSlidesForTableRows(tableRows, tableProps, presLayout, masterSlide) {
                     tgtCell.text = tgtCell.text.concat({ _type: SLIDE_OBJECT_TYPES.tablecell, text: '' });
                 // IMPORTANT: ^^^ add empty if there are no words to avoid "needs repair" issue triggered when cells have null content
             }
-            // 5: increase table height by the curr line height (if we're on the last column)
-            if (currCellIdx === rowCellLines.length - 1)
-                emuTabCurrH += emuLineMaxH;
-            // 6: advance column/cell index (or circle back to first one to continue adding lines)
-            currCellIdx = currCellIdx < rowCellLines.length - 1 ? currCellIdx + 1 : 0;
-            // 7: done?
+            // 5: done?
             var brent = rowCellLines.map(function (cell) { return cell._lines.length; }).reduce(function (prev, next) { return prev + next; });
             if (brent === 0)
                 isDone = true;
+            // 6: increase table height by the curr line height (if we're on the last column)
+            if (isDone || currCellIdx === rowCellLines.length - 1)
+                emuTabCurrH += emuLineMaxH;
+            // 7: advance column/cell index (or circle back to first one to continue adding lines)
+            currCellIdx = currCellIdx < rowCellLines.length - 1 ? currCellIdx + 1 : 0;
         }
         // F: Flush/capture row buffer before it resets at the top of this loop
         if (currTableRow.length > 0)
