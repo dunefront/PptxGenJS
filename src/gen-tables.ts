@@ -509,6 +509,17 @@ export function getSlidesForTableRows (tableRows: TableCell[][] = [], tableProps
 		console.log('|================================================|\n\n')
 	}
 
+    // fix empty cells
+    for (const slide of tableRowSlides) {
+        for (const row of slide.rows) {
+            for (const cell of row) {
+                if (cell.text.length === 0) {
+                    cell.text = '';
+                }
+            }
+        }
+    }
+
 	// LAST:
 	return tableRowSlides
 }

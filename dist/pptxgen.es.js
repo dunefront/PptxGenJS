@@ -1,4 +1,4 @@
-/* PptxGenJS 3.13.0-beta.0 @ 2023-05-17T03:15:58.392Z */
+/* PptxGenJS 3.13.0-beta.1 @ 2023-11-30T12:15:37.823Z */
 import JSZip from 'jszip';
 
 /******************************************************************************
@@ -1399,6 +1399,19 @@ function getSlidesForTableRows(tableRows, tableProps, presLayout, masterSlide) {
         console.log("| FINAL: tableRowSlides.length = ".concat(tableRowSlides.length));
         tableRowSlides.forEach(function (slide) { return console.log(slide); });
         console.log('|================================================|\n\n');
+    }
+    // fix empty cells
+    for (var _i = 0, tableRowSlides_1 = tableRowSlides; _i < tableRowSlides_1.length; _i++) {
+        var slide = tableRowSlides_1[_i];
+        for (var _a = 0, _b = slide.rows; _a < _b.length; _a++) {
+            var row = _b[_a];
+            for (var _c = 0, row_1 = row; _c < row_1.length; _c++) {
+                var cell = row_1[_c];
+                if (cell.text.length === 0) {
+                    cell.text = '';
+                }
+            }
+        }
     }
     // LAST:
     return tableRowSlides;
