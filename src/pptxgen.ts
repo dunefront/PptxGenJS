@@ -152,6 +152,30 @@ export default class PptxGenJS implements IPresentationProps {
 	}
 
 	/**
+	 * @type {Date}
+	 */
+	private _created: Date
+	public set created (value: Date) {
+		this._created = value
+	}
+
+	public get created (): Date {
+		return this._created
+	}
+
+	/**
+	 * @type {Date}
+	 */
+	private _modified: Date
+	public set modified (value: Date) {
+		this._modified = value
+	}
+
+	public get modified (): Date {
+		return this._modified
+	}
+
+	/**
 	 * @type {string}
 	 */
 	private _company: string
@@ -513,7 +537,7 @@ export default class PptxGenJS implements IPresentationProps {
 			zip.file('[Content_Types].xml', genXml.makeXmlContTypes(this.slides, this.slideLayouts, this.masterSlide)) // TODO: pass only `this` like below! 20200206
 			zip.file('_rels/.rels', genXml.makeXmlRootRels())
 			zip.file('docProps/app.xml', genXml.makeXmlApp(this.slides, this.company)) // TODO: pass only `this` like below! 20200206
-			zip.file('docProps/core.xml', genXml.makeXmlCore(this.title, this.subject, this.author, this.revision)) // TODO: pass only `this` like below! 20200206
+			zip.file('docProps/core.xml', genXml.makeXmlCore(this.title, this.subject, this.author, this.revision, this.created, this.modified)) // TODO: pass only `this` like below! 20200206
 			zip.file('ppt/_rels/presentation.xml.rels', genXml.makeXmlPresentationRels(this.slides))
 			zip.file('ppt/theme/theme1.xml', genXml.makeXmlTheme(this))
 			zip.file('ppt/presentation.xml', genXml.makeXmlPresentation(this))
