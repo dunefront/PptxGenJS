@@ -1,4 +1,4 @@
-/* PptxGenJS 3.13.0-beta.1 @ 2023-11-30T13:08:37.979Z */
+/* PptxGenJS 3.13.0-beta.1 @ 2024-01-03T11:41:45.431Z */
 import JSZip from 'jszip';
 
 /******************************************************************************
@@ -6397,10 +6397,14 @@ function makeXmlApp(slides, company) {
  * @param {string} subject - metadata data
  * @param {string} author - metadata value
  * @param {string} revision - metadata value
+ * @param {Date} created - metadata value
+ * @param {Date} modified - metadata value
  * @returns XML
  */
-function makeXmlCore(title, subject, author, revision) {
-    return "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n\t<cp:coreProperties xmlns:cp=\"http://schemas.openxmlformats.org/package/2006/metadata/core-properties\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:dcterms=\"http://purl.org/dc/terms/\" xmlns:dcmitype=\"http://purl.org/dc/dcmitype/\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\">\n\t\t<dc:title>".concat(encodeXmlEntities(title), "</dc:title>\n\t\t<dc:subject>").concat(encodeXmlEntities(subject), "</dc:subject>\n\t\t<dc:creator>").concat(encodeXmlEntities(author), "</dc:creator>\n\t\t<cp:lastModifiedBy>").concat(encodeXmlEntities(author), "</cp:lastModifiedBy>\n\t\t<cp:revision>").concat(revision, "</cp:revision>\n\t\t<dcterms:created xsi:type=\"dcterms:W3CDTF\">").concat(new Date().toISOString().replace(/\.\d\d\dZ/, 'Z'), "</dcterms:created>\n\t\t<dcterms:modified xsi:type=\"dcterms:W3CDTF\">").concat(new Date().toISOString().replace(/\.\d\d\dZ/, 'Z'), "</dcterms:modified>\n\t</cp:coreProperties>");
+function makeXmlCore(title, subject, author, revision, created, modified) {
+    created !== null && created !== void 0 ? created : (created = new Date());
+    modified !== null && modified !== void 0 ? modified : (modified = new Date());
+    return "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n\t<cp:coreProperties xmlns:cp=\"http://schemas.openxmlformats.org/package/2006/metadata/core-properties\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:dcterms=\"http://purl.org/dc/terms/\" xmlns:dcmitype=\"http://purl.org/dc/dcmitype/\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\">\n\t\t<dc:title>".concat(encodeXmlEntities(title), "</dc:title>\n\t\t<dc:subject>").concat(encodeXmlEntities(subject), "</dc:subject>\n\t\t<dc:creator>").concat(encodeXmlEntities(author), "</dc:creator>\n\t\t<cp:lastModifiedBy>").concat(encodeXmlEntities(author), "</cp:lastModifiedBy>\n\t\t<cp:revision>").concat(revision, "</cp:revision>\n\t\t<dcterms:created xsi:type=\"dcterms:W3CDTF\">").concat(created.toISOString().replace(/\.\d\d\dZ/, 'Z'), "</dcterms:created>\n\t\t<dcterms:modified xsi:type=\"dcterms:W3CDTF\">").concat(modified.toISOString().replace(/\.\d\d\dZ/, 'Z'), "</dcterms:modified>\n\t</cp:coreProperties>");
 }
 /**
  * Creates `ppt/_rels/presentation.xml.rels`
@@ -6881,7 +6885,7 @@ var PptxGenJS = /** @class */ (function () {
                                             zip.file('[Content_Types].xml', makeXmlContTypes(this.slides, this.slideLayouts, this.masterSlide)); // TODO: pass only `this` like below! 20200206
                                             zip.file('_rels/.rels', makeXmlRootRels());
                                             zip.file('docProps/app.xml', makeXmlApp(this.slides, this.company)); // TODO: pass only `this` like below! 20200206
-                                            zip.file('docProps/core.xml', makeXmlCore(this.title, this.subject, this.author, this.revision)); // TODO: pass only `this` like below! 20200206
+                                            zip.file('docProps/core.xml', makeXmlCore(this.title, this.subject, this.author, this.revision, this.created, this.modified)); // TODO: pass only `this` like below! 20200206
                                             zip.file('ppt/_rels/presentation.xml.rels', makeXmlPresentationRels(this.slides));
                                             zip.file('ppt/theme/theme1.xml', makeXmlTheme(this));
                                             zip.file('ppt/presentation.xml', makeXmlPresentation(this));
@@ -7041,6 +7045,26 @@ var PptxGenJS = /** @class */ (function () {
         },
         set: function (value) {
             this._author = value;
+        },
+        enumerable: false,
+        configurable: true
+    });
+    Object.defineProperty(PptxGenJS.prototype, "created", {
+        get: function () {
+            return this._created;
+        },
+        set: function (value) {
+            this._created = value;
+        },
+        enumerable: false,
+        configurable: true
+    });
+    Object.defineProperty(PptxGenJS.prototype, "modified", {
+        get: function () {
+            return this._modified;
+        },
+        set: function (value) {
+            this._modified = value;
         },
         enumerable: false,
         configurable: true
