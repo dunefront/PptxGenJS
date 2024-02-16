@@ -1,4 +1,4 @@
-/* PptxGenJS 3.13.0-beta.1 @ 2024-01-03T11:41:45.431Z */
+/* PptxGenJS 3.13.0-beta.2 @ 2024-02-16T14:34:08.218Z */
 import JSZip from 'jszip';
 
 /******************************************************************************
@@ -1024,7 +1024,11 @@ function parseTextToLines(cell, colWidth, verbose) {
                 // IMPORTANT: Handle `breakLine` prop - we cannot apply to each word - only apply to very last word!
                 if (cellProps === null || cellProps === void 0 ? void 0 : cellProps.breakLine)
                     cellProps.breakLine = idx + 1 === lineWords.length;
-                lineCells.push({ _type: SLIDE_OBJECT_TYPES.tablecell, text: word + (idx + 1 < lineWords.length ? ' ' : ''), options: cellProps });
+                lineCells.push({
+                    _type: SLIDE_OBJECT_TYPES.tablecell,
+                    text: word + (idx + 1 < lineWords.length ? ' ' : ''),
+                    options: cellProps
+                });
             });
             inputLines2.push(lineCells);
         });
@@ -1201,6 +1205,7 @@ function getSlidesForTableRows(tableRows, tableProps, presLayout, masterSlide) {
     }
     // STEP 6: **MAIN** Iterate over rows, add table content, create new slides as rows overflow
     var newTableRowSlide = { rows: [] };
+    var rowsWithReservedSpace = 0;
     tableRows.forEach(function (row, iRow) {
         // A: Row variables
         var rowCellLines = [];
@@ -1242,7 +1247,6 @@ function getSlidesForTableRows(tableRows, tableProps, presLayout, masterSlide) {
         });
         // C: Calc usable vertical space/table height. Set default value first, adjust below when necessary.
         calcSlideTabH();
-        emuTabCurrH += maxCellMarTopEmu + maxCellMarBtmEmu; // Start row height with margins
         if (tableProps.verbose && iRow === 0)
             console.log("| SLIDE [".concat(tableRowSlides.length, "]: emuSlideTabH ...... = ").concat((emuSlideTabH / EMU).toFixed(1), " "));
         // D: --==[[ BUILD DATA SET ]]==-- (iterate over cells: split text into lines[], set `lineHeight`)
@@ -1318,52 +1322,91 @@ function getSlidesForTableRows(tableRows, tableProps, presLayout, masterSlide) {
             var srcCell = rowCellLines[currCellIdx];
             var tgtCell = currTableRow[currCellIdx]; // NOTE: may be redefined below (a new row may be created, thus changing this value)
             // 1: calc emuLineMaxH
-            rowCellLines.forEach(function (cell) {
-                if (cell._lineHeight >= emuLineMaxH)
-                    emuLineMaxH = cell._lineHeight;
-            });
-            // 2: create a new slide if there is insufficient room for the current row
-            if (emuTabCurrH + emuLineMaxH > emuSlideTabH) {
-                if (tableProps.verbose) {
-                    console.log('\n|-----------------------------------------------------------------------|');
-                    // prettier-ignore
-                    console.log("|-- NEW SLIDE CREATED (currTabH+currLineH > maxH) => ".concat((emuTabCurrH / EMU).toFixed(2), " + ").concat((srcCell._lineHeight / EMU).toFixed(2), " > ").concat(emuSlideTabH / EMU));
-                    console.log('|-----------------------------------------------------------------------|\n\n');
+            // Do it only for first cell in the row. It will look for the highest cell and use this height.
+            if (currCellIdx === 0) {
+                emuLineMaxH = 0;
+                if (rowsWithReservedSpace > 0) {
+                    // If place for this row is already reserved then leave emuLineMaxH set to 0 and decrement counter
+                    rowsWithReservedSpace -= 1;
                 }
-                // A: add current row slide or it will be lost (only if it has rows and text)
-                if (currTableRow.length > 0 && currTableRow.map(function (cell) { return cell.text.length; }).reduce(function (p, n) { return p + n; }) > 0)
-                    newTableRowSlide.rows.push(currTableRow);
-                // B: add current slide to Slides array
-                tableRowSlides.push(newTableRowSlide);
-                // C: reset working/curr slide to hold rows as they're created
-                var newRows = [];
-                newTableRowSlide = { rows: newRows };
-                // D: reset working/curr row
-                currTableRow = [];
-                row.forEach(function (cell) { return currTableRow.push({ _type: SLIDE_OBJECT_TYPES.tablecell, text: [], options: cell.options }); });
-                // E: Calc usable vertical space/table height now as we may still be in the same row and code above ("C: Calc usable vertical space/table height.") calc may now be invalid
-                calcSlideTabH();
-                emuTabCurrH += maxCellMarTopEmu + maxCellMarBtmEmu; // Start row height with margins
-                if (tableProps.verbose)
-                    console.log("| SLIDE [".concat(tableRowSlides.length, "]: emuSlideTabH ...... = ").concat((emuSlideTabH / EMU).toFixed(1), " "));
-                // F: reset current table height for this new Slide
-                emuTabCurrH = 0;
-                // G: handle repeat headers option /or/ Add new empty row to continue current lines into
-                if ((tableProps.addHeaderToEach || tableProps.autoPageRepeatHeader) && tableProps._arrObjTabHeadRows) {
-                    tableProps._arrObjTabHeadRows.forEach(function (row) {
-                        var newHeadRow = [];
-                        var maxLineHeight = 0;
-                        row.forEach(function (cell) {
-                            newHeadRow.push(cell);
-                            if (cell._lineHeight > maxLineHeight)
-                                maxLineHeight = cell._lineHeight;
-                        });
-                        newTableRowSlide.rows.push(newHeadRow);
-                        emuTabCurrH += maxLineHeight; // TODO: what about margins? dont we need to include cell margin in line height?
+                else {
+                    rowCellLines.forEach(function (cell) {
+                        if (cell._lineHeight * cell._lines.length + maxCellMarTopEmu + maxCellMarBtmEmu >= emuLineMaxH) {
+                            // Count place for all lines in the row plus margins
+                            emuLineMaxH = cell._lineHeight * cell._lines.length + maxCellMarTopEmu + maxCellMarBtmEmu;
+                        }
+                        if (cell._lines.length > 1 && cell._lines.length - 1 >= rowsWithReservedSpace) {
+                            // if there are more lines in a row they all will be processed in the next loop executions
+                            // we want them to be flushed on one slide so we reserve place upfront
+                            rowsWithReservedSpace = cell._lines.length - 1;
+                        }
                     });
                 }
-                // WIP: NEW: TEST THIS!!
-                tgtCell = currTableRow[currCellIdx];
+                // 2: create a new slide if there is insufficient room for the current row
+                if (emuTabCurrH + emuLineMaxH > emuSlideTabH) {
+                    if (tableProps.verbose) {
+                        console.log('\n|-----------------------------------------------------------------------|');
+                        // prettier-ignore
+                        console.log("|-- NEW SLIDE CREATED (currTabH+currLineH > maxH) => ".concat((emuTabCurrH / EMU).toFixed(2), " + ").concat((srcCell._lineHeight / EMU).toFixed(2), " > ").concat(emuSlideTabH / EMU));
+                        console.log('|-----------------------------------------------------------------------|\n\n');
+                    }
+                    // A: add current row slide or it will be lost (only if it has rows and text)
+                    if (currTableRow.length > 0 && currTableRow.map(function (cell) { return cell.text.length; }).reduce(function (p, n) { return p + n; }) > 0)
+                        newTableRowSlide.rows.push(currTableRow);
+                    // B: add current slide to Slides array
+                    tableRowSlides.push(newTableRowSlide);
+                    // C: reset working/curr slide to hold rows as they're created
+                    var newRows = [];
+                    newTableRowSlide = { rows: newRows };
+                    // D: reset working/curr row
+                    currTableRow = [];
+                    row.forEach(function (cell) { return currTableRow.push({
+                        _type: SLIDE_OBJECT_TYPES.tablecell,
+                        text: [],
+                        options: cell.options
+                    }); });
+                    // E: Calc usable vertical space/table height now as we may still be in the same row and code above ("C: Calc usable vertical space/table height.") calc may now be invalid
+                    calcSlideTabH();
+                    if (tableProps.verbose)
+                        console.log("| SLIDE [".concat(tableRowSlides.length, "]: emuSlideTabH ...... = ").concat((emuSlideTabH / EMU).toFixed(1), " "));
+                    // F: reset current table height for this new Slide
+                    emuTabCurrH = 0;
+                    // G: handle repeat headers option /or/ Add new empty row to continue current lines into
+                    if ((tableProps.addHeaderToEach || tableProps.autoPageRepeatHeader) && tableProps._arrObjTabHeadRows) {
+                        tableProps._arrObjTabHeadRows.forEach(function (row) {
+                            var newHeadRow = [];
+                            var maxLineHeight = 0;
+                            row.forEach(function (cell) {
+                                var _a;
+                                newHeadRow.push(cell);
+                                // Count place for header lines
+                                // It's still not ideal as place is always reserved for one line
+                                // If needed it can be improved but we would need to calculate column width, number of rows etc.
+                                var cellHeight = inch2Emu(((((_a = cell.options) === null || _a === void 0 ? void 0 : _a.fontSize) ? cell.options.fontSize : tableProps.fontSize ? tableProps.fontSize : DEF_FONT_SIZE) *
+                                    (LINEH_MODIFIER + (tableProps.autoPageLineWeight ? tableProps.autoPageLineWeight : 0))) / 100);
+                                // Estimate number of lines in a header cell
+                                // This code is copied from other place and may not be ideal
+                                var CPL = 0;
+                                row.forEach(function (cell, iCell) {
+                                    var _a, _b;
+                                    var FOCO = 2.3 + (((_a = cell.options) === null || _a === void 0 ? void 0 : _a.autoPageCharWeight) ? cell.options.autoPageCharWeight : 0); // Character Constant
+                                    var colW = tableProps.colW[iCell];
+                                    if (cell.options.colspan && Array.isArray(tableProps.colW)) {
+                                        colW = tableProps.colW.filter(function (_cell, idx) { return idx >= iCell && idx < idx + cell.options.colspan; }).reduce(function (prev, curr) { return prev + curr; });
+                                    }
+                                    CPL = Math.floor((colW / ONEPT) * EMU) / ((((_b = cell.options) === null || _b === void 0 ? void 0 : _b.fontSize) ? cell.options.fontSize : DEF_FONT_SIZE) / FOCO);
+                                });
+                                var multiplier = CPL > 0 ? Math.ceil(cell.text.length / CPL) : 1;
+                                if (cellHeight * multiplier > maxLineHeight)
+                                    maxLineHeight = cellHeight * multiplier;
+                            });
+                            newTableRowSlide.rows.push(newHeadRow);
+                            emuTabCurrH += maxLineHeight + maxCellMarTopEmu + maxCellMarBtmEmu;
+                        });
+                    }
+                    // WIP: NEW: TEST THIS!!
+                    tgtCell = currTableRow[currCellIdx];
+                }
             }
             // 3: set array of words that comprise this line
             var currLine = srcCell._lines.shift();
@@ -1371,8 +1414,12 @@ function getSlidesForTableRows(tableRows, tableProps, presLayout, masterSlide) {
             if (Array.isArray(tgtCell.text)) {
                 if (currLine)
                     tgtCell.text = tgtCell.text.concat(currLine);
-                else if (tgtCell.text.length === 0)
-                    tgtCell.text = tgtCell.text.concat({ _type: SLIDE_OBJECT_TYPES.tablecell, text: '' });
+                else if (tgtCell.text.length === 0) {
+                    tgtCell.text = tgtCell.text.concat({
+                        _type: SLIDE_OBJECT_TYPES.tablecell,
+                        text: ''
+                    });
+                }
                 // IMPORTANT: ^^^ add empty if there are no words to avoid "needs repair" issue triggered when cells have null content
             }
             // 5: done?
@@ -1380,6 +1427,8 @@ function getSlidesForTableRows(tableRows, tableProps, presLayout, masterSlide) {
             if (brent === 0)
                 isDone = true;
             // 6: increase table height by the curr line height (if we're on the last column)
+            // emuLineMaxH contains height fo row including all lines and margins
+            // if more then one line in a row it could be processed and set to 0 in subsequent iterations
             if (isDone || currCellIdx === rowCellLines.length - 1)
                 emuTabCurrH += emuLineMaxH;
             // 7: advance column/cell index (or circle back to first one to continue adding lines)
@@ -1615,7 +1664,13 @@ function genTableToSlides(pptx, tabEleId, options, masterSlide) {
         if (opts.verbose)
             console.log("| opts.autoPageSlideStartY: ".concat(opts.autoPageSlideStartY, " / arrInchMargins[0]: ").concat(arrInchMargins[0], " => opts.y = ").concat(opts.y));
         // C: Add table to Slide
-        newSlide.addTable(slide.rows, { x: opts.x || arrInchMargins[3], y: opts.y, w: Number(emuSlideTabW) / EMU, colW: arrColW, autoPage: false });
+        newSlide.addTable(slide.rows, {
+            x: opts.x || arrInchMargins[3],
+            y: opts.y,
+            w: Number(emuSlideTabW) / EMU,
+            colW: arrColW,
+            autoPage: false
+        });
         // D: Add any additional objects
         if (opts.addImage) {
             opts.addImage.options = opts.addImage.options || {};
